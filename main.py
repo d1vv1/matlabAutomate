@@ -80,14 +80,10 @@ class MathWorksAutomator:
                 logger.error("Failed to navigate to course")
                 return False
             
-            # Step 2: Handle authentication if needed
-            if username and password:
-                if not self.auth_handler.login(username, password):
-                    logger.error("Login failed")
-                    return False
-            elif not self.auth_handler.is_logged_in():
-                logger.warning("Not logged in and no credentials provided")
-                # Continue anyway as some courses might not require login
+            # Step 2: Always attempt authentication
+            if not self.auth_handler.login(username, password):
+                logger.error("Login failed")
+                return False
             
             # Step 3: Find all tasks
             tasks = self.task_automator.find_tasks()
@@ -205,18 +201,14 @@ def get_user_input():
         print("❌ Course URL is required!")
         return None
     
-    # Login credentials
-    use_login = input("\n🔐 Do you need to login? (y/n): ").strip().lower() == 'y'
-    if use_login:
-        config['username'] = input("👤 Enter username: ").strip()
-        config['password'] = input("🔑 Enter password: ").strip()
-        
-        if not config['username'] or not config['password']:
-            print("❌ Both username and password are required for login!")
-            return None
-    else:
-        config['username'] = None
-        config['password'] = None
+    # Login credentials - always required now
+    print("\n🔐 Login credentials required for MathWorks automation")
+    config['username'] = input("👤 Enter username: ").strip()
+    config['password'] = input("🔑 Enter password: ").strip()
+    
+    if not config['username'] or not config['password']:
+        print("❌ Both username and password are required!")
+        return None
     
     # Task limit
     limit_tasks = input("\n🎯 Limit number of tasks? (y/n): ").strip().lower() == 'y'
@@ -235,7 +227,7 @@ def get_user_input():
     # Confirmation
     print(f"\n📋 Configuration Summary:")
     print(f"   Course URL: {config['course_url']}")
-    print(f"   Login: {'Yes' if config['username'] else 'No'}")
+    print(f"   Username: {config['username']}")
     print(f"   Task limit: {config['num_tasks'] if config['num_tasks'] else 'None (all tasks)'}")
     
     confirm = input(f"\n✅ Proceed with automation? (y/n): ").strip().lower()

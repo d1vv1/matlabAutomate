@@ -79,6 +79,15 @@ class Config:
         
         # Login elements
         'login': {
+            'sign_in_link': [
+                'a.mwa-nav_login',
+                'a.headernav_login',
+                'a[aria-label*="Sign In"]',
+                'a[id*="login"]',
+                'a.nav-link[href*="login"]',
+                '//a[contains(text(), "Sign In")]',
+                '//a[contains(@class, "login")]'
+            ],
             'username_field': '#userId',
             'password_field': '#password',
             'submit_button': 'button[type="submit"]'

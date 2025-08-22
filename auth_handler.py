@@ -34,6 +34,10 @@ class AuthenticationHandler:
         logger.info("Attempting to login to MathWorks...")
         
         try:
+            # First, check if we need to click the "Sign In" link
+            if not self.click_sign_in_link():
+                logger.warning("Could not find or click sign-in link, checking if already on login page")
+            
             # Look for username field
             username_field = self.element_finder.find_element_by_selectors([
                 Config.SELECTORS['login']['username_field'],
@@ -43,8 +47,8 @@ class AuthenticationHandler:
             ])
             
             if not username_field:
-                logger.info("No login form found - assuming already logged in or no login required")
-                return True
+                logger.warning("No login form found after clicking sign-in link")
+                return False
             
             # Look for password field
             password_field = self.element_finder.find_element_by_selectors([
@@ -179,4 +183,43 @@ class AuthenticationHandler:
             
         except Exception as e:
             logger.error(f"Error checking login status: {e}")
+            return False
+    
+    def click_sign_in_link(self):
+        """
+        Click the sign-in anchor tag to navigate to login page
+        
+        Returns:
+            bool: Success status
+        """
+        logger.info("Looking for sign-in link...")
+        
+        try:
+            # Use selectors from config first, then fallbacks
+            all_selectors = Config.SELECTORS['login']['sign_in_link'] + [
+                'a[href*="login"]',
+                '.login-link',
+                '#login-link',
+                '//a[contains(text(), "Login")]',
+                '//a[contains(text(), "log in")]'
+            ]
+            
+            sign_in_link = self.element_finder.find_clickable_element_by_selectors(all_selectors)
+            
+            if sign_in_link:
+                success = self.action_helper.safe_click(sign_in_link)
+                if success:
+                    logger.info("Successfully clicked sign-in link")
+                    # Wait for login page to load
+                    self.action_helper.wait_for_page_load(timeout=10)
+                    return True
+                else:
+                    logger.warning("Failed to click sign-in link")
+                    return False
+            else:
+                logger.warning("Could not find sign-in link")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error clicking sign-in link: {e}")
             return False
