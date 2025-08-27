@@ -1,5 +1,10 @@
 # MathWorks Course Automation Tool 🤖
 
+---
+**Disclaimer:**
+This tool is developed strictly for my personal educational purposes to learn about browser automation and Python. It is NOT intended for cheating, bypassing academic integrity, or violating MathWorks' or any institution's terms of service. I do not condone or support cheating in any form. Please use this tool responsibly and ethically, and only for legitimate learning and research.
+---
+
 An advanced, modular automation tool for completing MathWorks courses using Selenium WebDriver. The tool intelligently navigates through course tasks, extracts solutions, and automates the completion process.
 
 ## 🌟 Features

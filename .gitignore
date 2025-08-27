@@ -65,3 +65,7 @@ chromedriver.log
 
 # WebDriver cache
 .wdm/
+
+# Ignore reference/sample HTML files
+sample.html
+*.html
