@@ -203,8 +203,12 @@ def get_user_input():
     
     # Login credentials - always required now
     print("\n🔐 Login credentials required for MathWorks automation")
-    config['username'] = input("👤 Enter username: ").strip()
-    config['password'] = input("🔑 Enter password: ").strip()
+
+    #config['username'] = input("👤 Enter username: ").strip()
+    #config['password'] = input("🔑 Enter password: ").strip()
+
+    config['username'] = 'dmahi@gitam.in'
+    config['password'] = 'LDEq25FxS,bpP9T'
     
     if not config['username'] or not config['password']:
         print("❌ Both username and password are required!")

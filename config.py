@@ -88,9 +88,25 @@ class Config:
                 '//a[contains(text(), "Sign In")]',
                 '//a[contains(@class, "login")]'
             ],
-            'username_field': '#userId',
+            'subdomain_selection': [
+                '#recommended_domain_button',
+                '.btn.btn_color_blue[data-lang]',
+                'a[href*="mathworks.com/"][class*="btn"]',
+                '.recommended-country',
+                '//a[contains(@class, "btn") and contains(@href, "mathworks.com")]',
+                '//button[contains(text(), "Continue")]',
+                '//a[contains(@class, "recommended")]'
+            ],
+            'username_field': 'input[name="userId"]',  # Updated for MathWorks email field
             'password_field': '#password',
-            'submit_button': 'button[type="submit"]'
+            'submit_button': 'button[type="submit"]',
+            'email_submit_button': [
+                'button[type="submit"]',
+                '//button[contains(text(), "Next")]',
+                '//button[contains(text(), "Continue")]',
+                '//button[contains(text(), "Submit")]',
+                '.btn[type="submit"]'
+            ]
         }
     }
     

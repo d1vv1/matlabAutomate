@@ -34,60 +34,145 @@ class AuthenticationHandler:
         logger.info("Attempting to login to MathWorks...")
         
         try:
-            # First, check if we need to click the "Sign In" link
+            # First, check for subdomain selection (region/country selection)
+            # This must happen BEFORE clicking sign-in link
+            if not self.handle_subdomain_selection():
+                logger.warning("Subdomain selection handling failed or not required")
+            
+            # After subdomain selection, check if we need to click the "Sign In" link
             if not self.click_sign_in_link():
                 logger.warning("Could not find or click sign-in link, checking if already on login page")
             
-            # Look for username field
-            username_field = self.element_finder.find_element_by_selectors([
+            # Give extra time for login form to load
+            logger.info("Waiting for login form to load...")
+            time.sleep(3)  # Extra wait for form to appear
+            
+            # Look for username/email field (first step of login)
+            # Add more comprehensive selectors including class-based ones
+            username_selectors = [
+                'input[name="userId"]',
+                '#userId', 
+                'input[type="email"][name="userId"]',
+                '.form-control[name="userId"]',
+                'input.form-control[name="userId"]',
+                'input[id="userId"]',
+                'input[class*="form-control"][name="userId"]',
+                # Additional fallback selectors
+                'input[type="email"]',
+                'input[name="email"]',
+                'input[placeholder*="email"]',
+                'input[placeholder*="Email"]',
+                '.form-control[type="email"]',
                 Config.SELECTORS['login']['username_field'],
                 '#email',
-                'input[name="username"]',
-                'input[type="email"]'
-            ])
+                'input[name="username"]'
+            ]
+            
+            username_field = self.element_finder.find_element_by_selectors(username_selectors)
             
             if not username_field:
-                logger.warning("No login form found after clicking sign-in link")
+                # Debug: Let's see what input fields are actually available
+                logger.warning("Email field not found. Debugging available input fields...")
+                try:
+                    # Check if we're in an iframe
+                    iframes = self.driver.find_elements(By.TAG_NAME, "iframe")
+                    if iframes:
+                        logger.info(f"Found {len(iframes)} iframes on page")
+                        # Try switching to the first iframe
+                        try:
+                            self.driver.switch_to.frame(iframes[0])
+                            logger.info("Switched to first iframe")
+                            # Try finding the field again in the iframe
+                            username_field = self.element_finder.find_element_by_selectors(username_selectors)
+                            if username_field:
+                                logger.info("Found email field in iframe!")
+                        except Exception as e:
+                            logger.warning(f"Could not switch to iframe: {e}")
+                            self.driver.switch_to.default_content()
+                    
+                    if not username_field:
+                        all_inputs = self.driver.find_elements(By.TAG_NAME, "input")
+                        logger.info(f"Found {len(all_inputs)} input elements on page")
+                        for i, inp in enumerate(all_inputs[:10]):  # Log first 10 inputs
+                            try:
+                                inp_type = inp.get_attribute('type') or 'text'
+                                inp_name = inp.get_attribute('name') or 'no-name'
+                                inp_id = inp.get_attribute('id') or 'no-id'
+                                inp_class = inp.get_attribute('class') or 'no-class'
+                                inp_placeholder = inp.get_attribute('placeholder') or 'no-placeholder'
+                                logger.info(f"Input {i+1}: type='{inp_type}', name='{inp_name}', id='{inp_id}', class='{inp_class}', placeholder='{inp_placeholder}'")
+                            except Exception:
+                                logger.info(f"Input {i+1}: Could not get attributes")
+                except Exception as e:
+                    logger.warning(f"Could not debug input fields: {e}")
+                
+                if not username_field:
+                    logger.warning("No email/username field found after subdomain selection and sign-in")
+                    return False
+            
+            # Fill in email/username (first step)
+            logger.info("Filling in email/username (first step)...")
+            if not self.action_helper.safe_send_keys(username_field, username):
+                logger.error("Failed to enter email/username")
                 return False
             
-            # Look for password field
+            # Look for and click the "Next" or "Continue" button for email step
+            email_submit_button = self.element_finder.find_clickable_element_by_selectors([
+                'button[type="submit"]',
+                '//button[contains(text(), "Next")]',
+                '//button[contains(text(), "Continue")]',
+                '//button[contains(text(), "Submit")]',
+                '.btn[type="submit"]',
+                Config.SELECTORS['login']['submit_button']
+            ])
+            
+            if email_submit_button:
+                logger.info("Clicking email submit button...")
+                if not self.action_helper.safe_click(email_submit_button):
+                    logger.error("Failed to click email submit button")
+                    return False
+                
+                # Wait for password page to load
+                self.action_helper.wait_for_page_load(timeout=10)
+            else:
+                logger.warning("No email submit button found, attempting to continue...")
+            
+            # Now look for password field (second step)
             password_field = self.element_finder.find_element_by_selectors([
                 Config.SELECTORS['login']['password_field'],
                 'input[name="password"]',
-                'input[type="password"]'
+                'input[type="password"]',
+                '#password'
             ])
             
             if not password_field:
-                logger.error("Found username field but no password field")
+                logger.error("No password field found after email submission")
                 return False
             
-            # Look for submit button
-            submit_button = self.element_finder.find_clickable_element_by_selectors([
-                Config.SELECTORS['login']['submit_button'],
-                'button[type="submit"]',
-                'input[type="submit"]',
-                '//button[contains(text(), "Sign In")]',
-                '//button[contains(text(), "Login")]'
-            ])
-            
-            if not submit_button:
-                logger.error("Could not find login submit button")
-                return False
-            
-            # Fill in credentials
-            logger.info("Filling in credentials...")
-            
-            if not self.action_helper.safe_send_keys(username_field, username):
-                logger.error("Failed to enter username")
-                return False
-            
+            # Fill in password (second step)
+            logger.info("Filling in password (second step)...")
             if not self.action_helper.safe_send_keys(password_field, password):
                 logger.error("Failed to enter password")
                 return False
             
-            # Submit login form
-            if not self.action_helper.safe_click(submit_button):
-                logger.error("Failed to click login button")
+            # Look for final submit button for password step
+            final_submit_button = self.element_finder.find_clickable_element_by_selectors([
+                'button[type="submit"]',
+                'input[type="submit"]',
+                '//button[contains(text(), "Sign In")]',
+                '//button[contains(text(), "Login")]',
+                '//button[contains(text(), "Submit")]',
+                Config.SELECTORS['login']['submit_button']
+            ])
+            
+            if not final_submit_button:
+                logger.error("Could not find final login submit button")
+                return False
+            
+            # Submit final login form
+            logger.info("Submitting login form...")
+            if not self.action_helper.safe_click(final_submit_button):
+                logger.error("Failed to click final login button")
                 return False
             
             # Wait for login to complete
@@ -223,3 +308,46 @@ class AuthenticationHandler:
         except Exception as e:
             logger.error(f"Error clicking sign-in link: {e}")
             return False
+    
+    def handle_subdomain_selection(self):
+        """
+        Handle MathWorks subdomain/region selection if it appears
+        This should be called BEFORE clicking the sign-in link
+        
+        Returns:
+            bool: Success status (True if handled or not needed)
+        """
+        logger.info("Checking for subdomain selection page (before sign-in)...")
+        
+        try:
+            # Look for subdomain selection elements using config selectors
+            subdomain_button = self.element_finder.find_clickable_element_by_selectors(
+                Config.SELECTORS['login']['subdomain_selection'], timeout=5
+            )
+            
+            if subdomain_button:
+                # Get the country/region name for logging
+                try:
+                    country_text = subdomain_button.text or subdomain_button.get_attribute('aria-label') or "Unknown region"
+                    logger.info(f"Found subdomain selection for: {country_text}")
+                except:
+                    logger.info("Found subdomain selection button")
+                
+                success = self.action_helper.safe_click(subdomain_button)
+                
+                if success:
+                    logger.info("Successfully clicked subdomain selection button")
+                    # Wait for page to load after subdomain selection
+                    self.action_helper.wait_for_page_load(timeout=10)
+                    return True
+                else:
+                    logger.warning("Failed to click subdomain selection button")
+                    return False
+            else:
+                logger.info("No subdomain selection found - proceeding to sign-in")
+                return True
+                
+        except Exception as e:
+            logger.warning(f"Error handling subdomain selection: {e}")
+            # Don't fail the entire login process for subdomain selection issues
+            return True
